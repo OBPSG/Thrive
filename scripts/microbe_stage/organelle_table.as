@@ -36,6 +36,9 @@ Organelle atributes:
     composition:    A table with the compounds that compost the organelle.
                     They are needed in order to split the organelle, and a
                     percentage of them is released upon death of the microbe.
+					
+    isExternal: A value indicating if this organelle belongs on the outer
+                    perimeter of a microbe	
 */
 #include "organelle.as"
 #include "organelle_component.as"
@@ -98,6 +101,9 @@ class OrganelleParameters{
 
     //! Cost in mutation points
     int mpCost = 0;
+	
+	//! Flag for external attribute, set to false by default
+	bool isExternal = false;
 }
 
 //! Cache the result if called multiple times in quick succession
