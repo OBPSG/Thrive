@@ -106,17 +106,21 @@ class MicrobeStageHudSystem : ScriptSystem{
         if(player != NULL_OBJECT){
 
             auto bag = World.GetComponent_CompoundBagComponent(player);
+            auto playerSpecies = MicrobeOperations::getSpeciesComponent(World, "Default");
             MicrobeComponent@ microbeComponent = cast<MicrobeComponent>(
                 World.GetScriptComponentHolder("MicrobeComponent").Find(player));
 
             GenericEvent@ event = GenericEvent("PlayerCompoundAmounts");
+            GenericEvent@ changePopulation = GenericEvent("PopulationChange");
             NamedVars@ vars = event.GetNamedVars();
+            NamedVars@ populationVars = changePopulation.GetNamedVars();
 
             // Write data
             vars.AddValue(ScriptSafeVariableBlock("hitpoints",
                     int(microbeComponent.hitpoints)));
             vars.AddValue(ScriptSafeVariableBlock("maxHitpoints",
                     int(microbeComponent.maxHitpoints)));
+            populationVars.AddValue(ScriptSafeVariableBlock("populationAmount", playerSpecies.population));
 
             if(bag is null){
 
@@ -164,6 +168,7 @@ class MicrobeStageHudSystem : ScriptSystem{
 
             // Fire it off so that the GUI scripts will get it and update the GUI state
             GetEngine().GetEventHandler().CallEvent(event);
+            GetEngine().GetEventHandler().CallEvent(changePopulation);
         }
 
         //since this is ran every step this is a good place to do music code
@@ -246,12 +251,16 @@ class MicrobeStageHudSystem : ScriptSystem{
         // print("Reproduction Dialog called but currently disabled. Is it needed? Note that the editor button has been enabled")
         //global_activeMicrobeStageHudSystem.rootGUIWindow.getChild("ReproductionPanel").show()
         if(b3 == false){
-            // getComponent("gui_sounds", g_luaEngine.currentGameState, SoundSourceComponent
-            // ).playSound("microbe-pickup-organelle");
-            // this.rootGUIWindow.getChild("editornotification").show();
+
             b3 = true;
+
+            GetEngine().GetSoundDevice().Play2DSoundEffect(
+                "Data/Sound/soundeffects/microbe-pickup-organelle.ogg");
+
+            LOG_INFO("Ready to reproduce!");
+            GenericEvent@ event = GenericEvent("PlayerReadyToEnterEditor");
+            GetEngine().GetEventHandler().CallEvent(event);
         }
-        // this.editorButton.enable();
     }
 
     void suicideButtonClicked(){
@@ -759,7 +768,6 @@ class MicrobeStageHudSystem : ScriptSystem{
 // Wrappers for calling GUI update things from random places
 
 void showReproductionDialog(GameWorld@ world){
-    LOG_INFO("Ready to reproduce!");
     cast<MicrobeStageHudSystem@>(world.GetScriptSystem("MicrobeStageHudSystem")).
         showReproductionDialog();
 }

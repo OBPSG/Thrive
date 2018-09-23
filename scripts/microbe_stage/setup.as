@@ -129,10 +129,39 @@ void applyEngulfMode(CellStageWorld@ world, ObjectID entity){
 }
 
 
-void onReturnFromEditor(CellStageWorld@ world){
-    LOG_INFO("TODO: apply the changes and spawn a copy of the player species from "
-        "before the change");
+void onReturnFromEditor(CellStageWorld@ world)
+{
+    // Increase the population by 30 and increase the generation
+    auto playerSpecies = MicrobeOperations::getSpeciesComponent(world, "Default");
+    playerSpecies.population += 30;
+    ++playerSpecies.generation;
 
+    //Call event that checks win conditions
+    GenericEvent@ event = GenericEvent("CheckWin");
+    NamedVars@ vars = event.GetNamedVars();
+    vars.AddValue(ScriptSafeVariableBlock("generation", playerSpecies.generation));
+    GetEngine().GetEventHandler().CallEvent(event);
+
+    // The editor changes the cell template for the species so we won't have to do that here
+    const auto player = GetThriveGame().playerData().activeCreature();
+    auto pos = world.GetComponent_Position(player);
+
+    assert(pos !is null);
+
+    // Spawn another cell from the player species
+    PlayerSpeciesSpawner factory("Default");
+    auto spawned = factory.factorySpawn(world, pos._Position);
+
+    LOG_WRITE("TODO: the spawned cell from the player species from the editor split will "
+        "never be despawned");
+
+    MicrobeComponent@ microbeComponent = cast<MicrobeComponent>(
+        world.GetScriptComponentHolder("MicrobeComponent").Find(player));
+
+    // Reset the player cell to be the same as the species template
+    Species::restoreOrganelleLayout(world, player, microbeComponent, playerSpecies);
+
+    // TODO: the player compound amount should be halved
 }
 
 // TODO: also put these physics callback somewhere
@@ -161,6 +190,33 @@ void cellHitFloatingOrganelle(GameWorld@ world, ObjectID firstEntity, ObjectID s
     LOG_INFO("TODO: organelle unlock progress if cell: " + cellEntity + " is the player");
 
     world.QueueDestroyEntity(floatingEntity);
+}
+
+// Cell Hit Oxytoxy
+// We can make this generic using the dictionary in agents.as eventually, but for now all we have is oxytoxy
+void cellHitAgent(GameWorld@ world, ObjectID firstEntity, ObjectID secondEntity){
+
+    LOG_INFO("Cell hit an agaent: object ids: " + firstEntity + " and " +
+        secondEntity);
+
+    // Determine which is the organelle
+    CellStageWorld@ asCellWorld = cast<CellStageWorld>(world);
+
+    auto model = asCellWorld.GetComponent_Model(firstEntity);
+    auto floatingEntity = firstEntity;
+    auto cellEntity = secondEntity;
+
+    // Cell doesn't have a model
+    if(model is null){
+        @model = asCellWorld.GetComponent_Model(secondEntity);
+        floatingEntity = secondEntity;
+        cellEntity = firstEntity;
+    }
+
+    MicrobeOperations::damage(asCellWorld, cellEntity, double(OXY_TOXY_DAMAGE), "toxin");
+
+    world.QueueDestroyEntity(floatingEntity);
+
 }
 
 // SO what should we use this method for?
@@ -243,8 +299,6 @@ int beingEngulfed(GameWorld@ world, ObjectID firstEntity, ObjectID secondEntity)
 }
 
 
-
-// TODO: This should be moved somewhere else...
 void createAgentCloud(CellStageWorld@ world, CompoundId compoundId, Float3 pos,
     Float3 direction, float amount)
 {
@@ -257,25 +311,28 @@ void createAgentCloud(CellStageWorld@ world, CompoundId compoundId, Float3 pos,
         Ogre::Quaternion(Ogre::Degree(GetEngine().GetRandom().GetNumber(0, 360)),
             Ogre::Vector3(0, 1, 0)));
 
+
+
     auto rigidBody = world.Create_Physics(agentEntity, world, position, null);
 
     rigidBody.SetCollision(world.GetPhysicalWorld().CreateSphere(HEX_SIZE));
-    rigidBody.CreatePhysicsBody(world.GetPhysicalWorld());
+    rigidBody.CreatePhysicsBody(world.GetPhysicalWorld(), world.GetPhysicalMaterial("agentCollision"));
     // Agent
 
     rigidBody.CreatePlaneConstraint(world.GetPhysicalWorld(), Float3(0, 1, 0));
 
-    rigidBody.SetMass(0.001);
+    rigidBody.SetMass(1.0);
 
     // TODO: physics property applying here as well
     // rigidBody.properties.friction = 0.4;
     // rigidBody.properties.linearDamping = 0.4;
 
-    // TODO: impulse or set velocity?
     rigidBody.SetVelocity(normalizedDirection * AGENT_EMISSION_VELOCITY);
 
+    rigidBody.JumpTo(position);
     auto sceneNode = world.Create_RenderNode(agentEntity);
     auto model = world.Create_Model(agentEntity, sceneNode.Node, "oxytoxy.mesh");
+
     // Need to set the tint
     model.GraphicalObject.setCustomParameter(1, Ogre::Vector4(1, 1, 1, 1));
 
@@ -349,21 +406,15 @@ class PlayerSpeciesSpawner{
 
 ObjectID createToxin(CellStageWorld@ world, Float3 pos)
 {
-
     // Toxins
     ObjectID toxinEntity = world.CreateEntity();
     //LOG_INFO("toxin spawned at pos x"+ pos.X +"y"+ pos.Y +"z"+ pos.Z);
-
     auto position = world.Create_Position(toxinEntity, pos,Ogre::Quaternion(Ogre::Degree(GetEngine().GetRandom().GetNumber(0, 360)),Ogre::Vector3(0,1,0)));
-
-
     auto renderNode = world.Create_RenderNode(toxinEntity);
     renderNode.Scale = Float3(1, 1, 1);
     renderNode.Marked = true;
     renderNode.Node.setOrientation(Ogre::Quaternion(Ogre::Degree(GetEngine().GetRandom().GetNumber(0, 360)),Ogre::Vector3(0,1,1)));
     renderNode.Node.setPosition(pos);
-
-
     // Ogre::Quaternion(Ogre::Degree(GetEngine().GetRandom().GetNumber(0, 360)),
     //     Ogre::Vector3(0, 1, 0)));
 
@@ -374,7 +425,7 @@ ObjectID createToxin(CellStageWorld@ world, Float3 pos)
     auto rigidBody = world.Create_Physics(toxinEntity, world, position, null);
     rigidBody.SetCollision(world.GetPhysicalWorld().CreateSphere(1));
     rigidBody.CreatePhysicsBody(world.GetPhysicalWorld(),
-        world.GetPhysicalMaterial("floatingOrganelle"));
+        world.GetPhysicalMaterial("agentCollision"));
     rigidBody.CreatePlaneConstraint(world.GetPhysicalWorld(), Float3(0,1,0));
     rigidBody.SetMass(1.0f);
 
@@ -396,9 +447,6 @@ ObjectID createChloroplast(CellStageWorld@ world, Float3 pos)
     renderNode.Marked = true;
     renderNode.Node.setOrientation(Ogre::Quaternion(Ogre::Degree(GetEngine().GetRandom().GetNumber(0, 360)),Ogre::Vector3(0,1,1)));
     renderNode.Node.setPosition(pos);
-
-
-
     auto model = world.Create_Model(chloroplastEntity, renderNode.Node, "chloroplast.mesh");
     // Need to set the tint
     model.GraphicalObject.setCustomParameter(1, Ogre::Vector4(1, 1, 1, 1));
@@ -436,7 +484,7 @@ void setupSpawnSystem(CellStageWorld@ world){
 
         SpawnFactoryFunc@ factory = SpawnFactoryFunc(spawner.factorySpawn);
 
-    LOG_INFO("adding spawn player species: " + name);
+        LOG_INFO("adding spawn player species: " + name);
 
         const auto spawnerId = spawnSystem.addSpawnType(
             factory, DEFAULT_SPAWN_DENSITY, //spawnDensity should depend on population

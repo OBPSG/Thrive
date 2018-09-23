@@ -74,6 +74,12 @@ class OrganelleComponentFactory{
 //! This is clearer as to what are valid properties
 class OrganelleParameters{
 
+    //! It might be an AngelScript bug that requires this to be specified.
+    //! \todo try removing at some point
+    OrganelleParameters(){
+        this.name = "invalid";
+    }
+
     OrganelleParameters(const string &in name){
 
         this.name = name;
@@ -428,7 +434,7 @@ void setupOrganelles(){
     flagellumParameters.mass = 0.3;
     flagellumParameters.gene = "F";
     flagellumParameters.mesh = "flagellum.mesh";
-    flagellumParameters.chanceToCreate = 3;
+    flagellumParameters.chanceToCreate = 6;
     flagellumParameters.prokaryoteChance = 2;
     flagellumParameters.mpCost = 25;
     flagellumParameters.initialComposition = {

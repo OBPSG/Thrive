@@ -580,6 +580,27 @@ void
         return;
     }
 }
+
+void
+    ThriveGame::exitToMenuClicked()
+{
+    // Unlink window
+    Leviathan::Window* window2 = Engine::GetEngine()->GetWindowEntity();
+    window2->LinkObjects(nullptr);
+
+    // Clear the world
+    m_impl->m_cellStage->ClearEntities();
+
+    // Get proper keys setup
+    m_impl->m_menuKeyPresses->setEnabled(true);
+    m_impl->m_cellStageKeys->setEnabled(false);
+
+    // Start the Thrive main theme again
+
+    // Log the successful return to menu
+    LOG_INFO("Back to main menu!");
+}
+
 // ------------------------------------ //
 void
     ThriveGame::onZoomChange(float amount)
@@ -694,6 +715,38 @@ void
         return;
     }
 }
+
+//! \note This is called from a background thread
+void
+    cellHitAgent(const NewtonJoint* contact, dFloat timestep, int threadIndex)
+{
+    NewtonBody* first = NewtonJointGetBody0(contact);
+    NewtonBody* second = NewtonJointGetBody1(contact);
+
+    if(!first || !second)
+        return;
+
+    Leviathan::Physics* firstPhysics =
+        static_cast<Leviathan::Physics*>(NewtonBodyGetUserData(first));
+    Leviathan::Physics* secondPhysics =
+        static_cast<Leviathan::Physics*>(NewtonBodyGetUserData(second));
+
+    NewtonWorld* world = NewtonBodyGetWorld(first);
+    Leviathan::PhysicalWorld* physicalWorld =
+        static_cast<Leviathan::PhysicalWorld*>(NewtonWorldGetUserData(world));
+
+    GameWorld* gameWorld = physicalWorld->GetGameWorld();
+
+    ScriptRunningSetup setup("cellHitAgent");
+
+    auto result = ThriveGame::Get()->getMicrobeScripts()->ExecuteOnModule<void>(
+        setup, false, gameWorld, firstPhysics->ThisEntity,
+        secondPhysics->ThisEntity);
+
+    if(result.Result != SCRIPT_RUN_RESULT::Success)
+        LOG_ERROR("Failed to run script side cellHitAgent");
+}
+
 
 //! \note This is called from a background thread
 void
@@ -813,15 +866,24 @@ void
     auto cellMaterial = std::make_shared<Leviathan::PhysicalMaterial>("cell");
     auto floatingOrganelleMaterial =
         std::make_shared<Leviathan::PhysicalMaterial>("floatingOrganelle");
+    auto agentMaterial =
+        std::make_shared<Leviathan::PhysicalMaterial>("agentCollision");
 
     // Set callbacks //
+
+    // Floating organelles
     cellMaterial->FormPairWith(*floatingOrganelleMaterial)
         .SetCallbacks(nullptr, cellHitFloatingOrganelle);
+    // Agents
+    cellMaterial->FormPairWith(*agentMaterial)
+        .SetCallbacks(nullptr, cellHitAgent);
+    // Engulfing
     cellMaterial->FormPairWith(*cellMaterial)
         .SetCallbacks(cellOnCellAABBHitCallback, cellOnCellActualContact);
 
     manager->LoadedMaterialAdd(cellMaterial);
     manager->LoadedMaterialAdd(floatingOrganelleMaterial);
+    manager->LoadedMaterialAdd(agentMaterial);
 }
 
 void

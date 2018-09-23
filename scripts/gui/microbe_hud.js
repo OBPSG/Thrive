@@ -30,7 +30,11 @@ function runMicrobeHUDSetup(){
     // Quit Button Clicked
     document.getElementById("quitButtonHud").addEventListener(
         "click", quitGameHud, true);
-        
+
+    // Main-Menu Button (Inside pause menu) Clicked
+    document.getElementById("exitToMenuButton").addEventListener(
+        "click", onExitToMenuClicked, true);
+
     // Help Button Clicked
     document.getElementById("helpButton").addEventListener(
         "click", openHelp, true);
@@ -49,6 +53,18 @@ function runMicrobeHUDSetup(){
 
             // Apply the new values
             updateMicrobeHUDBars(vars);
+        });
+
+        // Event for population changes
+        Leviathan.OnGeneric("PopulationChange", (event, vars) => {
+
+            // Apply the new values
+            updatePopulation(vars.populationAmount);
+        });
+		
+		// Event for checking win conditions
+		Leviathan.OnGeneric("CheckWin", (event, vars) => {
+            checkGeneration(vars.generation);
         });
 
         // Event for receiving data about stuff we are hovering over
@@ -93,6 +109,9 @@ function runMicrobeHUDSetup(){
             compoundHydrogenSulfide: randomBetween(0, hydrogenSulfide),
             HydrogenSulfideMax: hydrogenSulfide,
         });
+
+        // Pseudo population code
+        updatePopulation(randomBetween(0, 50));
 
         // Put some hover stuff
         updateHoverInfo({
@@ -168,7 +187,7 @@ function onMenuClicked(event){
     playButtonPressSound();
     let pause = document.getElementById("pauseOverlay");
     pause.style.display = "block";
-     let help = document.getElementById("helpText");
+    let help = document.getElementById("helpText");
     help.style.display = "none";
 }
 
@@ -211,6 +230,25 @@ function onEditorButtonClicked(event){
     readyToEdit = false;
 }
 
+function onExitToMenuClicked(event)
+{
+    //Exit to main menu
+    document.getElementById("topLevelMenuContainer").style.display = '';
+    document.getElementById("topLevelMicrobeStage").style.display = 'none';
+    document.getElementById("pauseOverlay").style.display = 'none';
+    if(isInEngine()){
+        Thrive.exitToMenuClicked();
+
+        let pause = Boolean(false);
+        let x = null;
+        // Start the menu music
+        Leviathan.Play2DSound("Data/Sound/main-menu-theme-2.ogg", true, pause,
+                              (source) => {
+                                  x = source;
+                              });
+    } else {}
+}
+
 //! Updates the mouse hover box with stuff
 function updateHoverInfo(vars){
 
@@ -242,6 +280,26 @@ function updateHoverInfo(vars){
     }
 
     // Last line break needs to be skipped to avoid an excess empty line
+}
+
+//! Updates population bar in GUI
+function updatePopulation(population){
+    document.getElementById("populationCount").textContent =
+    population;
+}
+
+function checkGeneration (generation){
+    //This is set to == because I don't want the wintext to show up after the 15th generation
+    //This can be changed by just about anyone if needed very easily
+    if(generation == 15){
+        document.getElementById("winText").style.display = 'unset';
+        setTimeout(hideWinText, 5000);
+    }
+}
+
+//! Supplementry function for checkGeneration that hides the wintext
+function hideWinText (){
+    document.getElementById("winText").style.display = 'none';
 }
 
 //! Updates the GUI bars

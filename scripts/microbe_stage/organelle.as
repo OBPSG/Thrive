@@ -702,7 +702,7 @@ class PlacedOrganelle : SpeciesStoredOrganelleType{
         // performance reasons we could it set here directly as it
         // never changes
         renderNode.Node.setPosition(offset + this.cartesianPosition);
-    //maybe instead of changing this here we should do so in the generation routine.
+        //maybe instead of changing this here we should do so in the generation routine.
         renderNode.Node.setOrientation(Ogre::Quaternion(Ogre::Degree(rotation),
                 Ogre::Vector3(0, 1, 1)));
 
@@ -725,9 +725,8 @@ class PlacedOrganelle : SpeciesStoredOrganelleType{
             if(hexCollision is null)
                 assert(false, "Failed to create Sphere for hex");
 
-            _addedCollisions.insertLast(@hexCollision);
-
-            collisionShape.CompoundCollisionAddSubCollision(hexCollision);
+            _addedCollisions.insertLast(
+                collisionShape.CompoundCollisionAddSubCollision(hexCollision));
         }
 
 
@@ -786,7 +785,7 @@ class PlacedOrganelle : SpeciesStoredOrganelleType{
     void onRemovedFromMicrobe(ObjectID microbe, NewtonCollision@ collisionShape){
 
         LOG_INFO("PlacedOrganelle (" + organelle.name + ") removed from: " + microbeEntity);
-        PrintCallStack();
+        // PrintCallStack();
 
         //iterating on each OrganelleComponent
         for(uint i = 0; i < components.length(); ++i){
@@ -887,7 +886,7 @@ class PlacedOrganelle : SpeciesStoredOrganelleType{
     PlacedOrganelle@ sisterOrganelle = null;
 
     // Used for removing the added sub collisions when we are removed from a microbe
-    private array<NewtonCollision@> _addedCollisions;
+    private array<NewtonCollisionNode@> _addedCollisions;
 
     bool _needsColourUpdate = false;
 }

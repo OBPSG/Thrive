@@ -101,24 +101,28 @@ Ogre::Vector3
 Ogre::Vector3
     MembraneComponent::GetExternalOrganelle(double x, double y)
 {
+    if(vertices2D.empty())
+        LOG_WARNING("MembraneComponent: GetExternalOrganelle: called before "
+                    "membrane is initialized. Returning 0, 0");
+
     float organelleAngle = Ogre::Math::ATan2(y, x).valueRadians();
 
     Ogre::Vector3 closestSoFar(0, 0, 0);
     float angleToClosest = Ogre::Math::TWO_PI;
 
-    for(size_t i = 0, end = vertices2D.size(); i < end; i++) {
-        if(Ogre::Math::Abs(Ogre::Math::ATan2(vertices2D[i].y, vertices2D[i].x)
-                               .valueRadians() -
-                           organelleAngle) < angleToClosest) {
-            closestSoFar = Ogre::Vector3(vertices2D[i].x, vertices2D[i].y, 0);
+    for(const auto& vertex : vertices2D) {
+        if(Ogre::Math::Abs(
+               Ogre::Math::ATan2(vertex.y, vertex.x).valueRadians() -
+               organelleAngle) < angleToClosest) {
+            closestSoFar = Ogre::Vector3(vertex.x, vertex.y, 0);
             angleToClosest = Ogre::Math::Abs(
-                Ogre::Math::ATan2(vertices2D[i].y, vertices2D[i].x)
-                    .valueRadians() -
+                Ogre::Math::ATan2(vertex.y, vertex.x).valueRadians() -
                 organelleAngle);
         }
     }
 
-    return closestSoFar;
+    // Swap to world coordinates from internal membrane coordinates
+    return Ogre::Vector3(closestSoFar.x, 0, closestSoFar.y);
 }
 
 bool
@@ -517,6 +521,21 @@ void
     MembraneComponent::sendOrganelles(double x, double y)
 {
     organellePositions.emplace_back(x, y, 0);
+}
+
+bool
+    MembraneComponent::removeSentOrganelle(double x, double y)
+{
+    for(auto iter = organellePositions.begin();
+        iter != organellePositions.end(); ++iter) {
+
+        if(iter->x == x && iter->y == y) {
+            organellePositions.erase(iter);
+            return true;
+        }
+    }
+
+    return false;
 }
 
 void

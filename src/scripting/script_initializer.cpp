@@ -571,6 +571,12 @@ bool
         ANGELSCRIPT_REGISTERFAIL;
     }
 
+    if(engine->RegisterObjectMethod("MembraneComponent",
+           "bool removeSentOrganelle(double x, double y)",
+           asMETHOD(MembraneComponent, removeSentOrganelle),
+           asCALL_THISCALL) < 0) {
+        ANGELSCRIPT_REGISTERFAIL;
+    }
 
 
     // ------------------------------------ //
@@ -640,6 +646,21 @@ bool
 
     if(engine->RegisterObjectProperty("SpeciesComponent", "double fear",
            asOFFSET(SpeciesComponent, fear)) < 0) {
+        ANGELSCRIPT_REGISTERFAIL;
+    }
+
+    if(engine->RegisterObjectProperty("SpeciesComponent", "double activity",
+           asOFFSET(SpeciesComponent, activity)) < 0) {
+        ANGELSCRIPT_REGISTERFAIL;
+    }
+
+    if(engine->RegisterObjectProperty("SpeciesComponent", "int32 population",
+           asOFFSET(SpeciesComponent, population)) < 0) {
+        ANGELSCRIPT_REGISTERFAIL;
+    }
+
+    if(engine->RegisterObjectProperty("SpeciesComponent", "int32 generation",
+           asOFFSET(SpeciesComponent, generation)) < 0) {
         ANGELSCRIPT_REGISTERFAIL;
     }
 
