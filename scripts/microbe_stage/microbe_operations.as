@@ -223,7 +223,7 @@ void setupMicrobeHitpoints(CellStageWorld@ world, ObjectID microbeEntity, int he
         world.GetScriptComponentHolder("MicrobeComponent").Find(microbeEntity));
     microbeComponent.maxHitpoints = health;
     microbeComponent.hitpoints = microbeComponent.maxHitpoints;
-    microbeComponent.agentEmissionCooldown=0;
+    microbeComponent.agentEmissionCooldown=uint(0);
 }
 
 //grabs compounds from template (starter_mcirobes) and stores them)
@@ -486,7 +486,7 @@ void applyMembraneColour(CellStageWorld@ world, ObjectID microbeEntity){
     // //
     // // @param maxAmount
     // // The maximum amount to try to emit
-void emitAgent(CellStageWorld@ world, ObjectID microbeEntity, CompoundId compoundId, double maxAmount){
+void emitAgent(CellStageWorld@ world, ObjectID microbeEntity, CompoundId compoundId, double maxAmount, float lifeTime){
         MicrobeComponent@ microbeComponent = cast<MicrobeComponent>(
             world.GetScriptComponentHolder("MicrobeComponent").Find(microbeEntity));
     //     auto soundSourceComponent = world.GetComponent_SoundSourceComponent(microbeEntity, SoundSourceComponent);
@@ -494,20 +494,16 @@ void emitAgent(CellStageWorld@ world, ObjectID microbeEntity, CompoundId compoun
         auto cellPosition = world.GetComponent_Position(microbeEntity);
 
     // Cooldown code
-    LOG_INFO(" "+microbeComponent.agentEmissionCooldown);
+    LOG_INFO("Cooldown "+microbeComponent.agentEmissionCooldown);
 
-    //if(microbeComponent.agentEmissionCooldown > 0){ return; }
+    if(microbeComponent.agentEmissionCooldown > 0){ return; }
 
     auto numberOfAgentVacuoles = int (microbeComponent.specialStorageOrganelles[formatUInt(compoundId)]);
     // Only shoot if you have an agent vacuole.
     if(numberOfAgentVacuoles == 0){ return; }
-    // The cooldown time is inversely proportional to the amount of agent vacuoles.
-    microbeComponent.agentEmissionCooldown = AGENT_EMISSION_COOLDOWN/numberOfAgentVacuoles;
 
     if(MicrobeOperations::getCompoundAmount(world, microbeEntity, compoundId) > MINIMUM_AGENT_EMISSION_AMOUNT)
         {
-
-        GetEngine().GetSoundDevice().Play2DSoundEffect("Data/Sound/soundeffects/microbe-release-toxin.ogg");
         // Calculate the emission angle of the agent emitter
          // The front of the microbe
          Float3 exit = Hex::axialToCartesian(1, 0);
@@ -531,7 +527,7 @@ void emitAgent(CellStageWorld@ world, ObjectID microbeEntity, CompoundId compoun
             }
              angle = -(angle * 180/PI-90 ) % 360;
         // Find the direction the microbe is facing
-        auto ejectionDistance = (maxR+1) * HEX_SIZE;
+        auto ejectionDistance = (maxR+1.7f) * HEX_SIZE;
         auto yAxis = Ogre::Quaternion(cellPosition._Orientation).yAxis();
         auto microbeAngle = atan2(yAxis.x,yAxis.z);
         if(microbeAngle < 0){
@@ -549,8 +545,13 @@ void emitAgent(CellStageWorld@ world, ObjectID microbeEntity, CompoundId compoun
 
         auto vec = ( microbeComponent.facingTargetPoint - cellPosition._Position);
         auto direction = vec.Normalize();
-
-        createAgentCloud(world, compoundId, cellPosition._Position+(Float3(xnew*ejectionDistance,0,ynew*ejectionDistance)), direction,amountToEject * 10.0f);
+        if (amountToEject >= MINIMUM_AGENT_EMISSION_AMOUNT)
+            {
+            GetEngine().GetSoundDevice().Play2DSoundEffect("Data/Sound/soundeffects/microbe-release-toxin.ogg");
+            createAgentCloud(world, compoundId, cellPosition._Position+(Float3(xnew*ejectionDistance,0,ynew*ejectionDistance)), direction,amountToEject * 10.0f,lifeTime);
+            // The cooldown time is inversely proportional to the amount of agent vacuoles.
+            microbeComponent.agentEmissionCooldown = uint(AGENT_EMISSION_COOLDOWN/numberOfAgentVacuoles);
+            }
         }
     }
 
@@ -820,6 +821,7 @@ ObjectID spawnMicrobe(CellStageWorld@ world, Float3 pos, const string &in specie
     if(species.isBacteria){
         node.Scale = Float3(0.5, 0.5, 0.5);
         node.Marked = true;
+        physics.SetCollision(world.GetPhysicalWorld().CreateSphere(HEX_SIZE/2.0f));
     }
 
     return microbeEntity;
@@ -862,12 +864,10 @@ ObjectID spawnBacteria(CellStageWorld@ world, Float3 pos, const string &in speci
     auto node = world.GetComponent_RenderNode(microbeEntity);
     node.Node.setPosition(pos);
 
-    auto speciesEntity = findSpeciesEntityByName(world, speciesName);
-    auto species = world.GetComponent_SpeciesComponent(speciesEntity);
-
     // Bacteria get scaled to half size
     node.Scale = Float3(0.5, 0.5, 0.5);
     node.Marked = true;
+    physics.SetCollision(world.GetPhysicalWorld().CreateSphere(HEX_SIZE/2.0f));
     // Need to set bacteria spawn and it needs to be squared like it is in the spawn system. code, if part of colony but not directly spawned give a spawned component
     if (partOfColony){
     world.Create_SpawnedComponent(microbeEntity,BACTERIA_SPAWN_RADIUS*BACTERIA_SPAWN_RADIUS);
@@ -1054,17 +1054,14 @@ void kill(CellStageWorld@ world, ObjectID microbeEntity)
     // Releasing all the agents.
     auto storageTypes = microbeComponent.specialStorageOrganelles.getKeys();
     for(uint i = 0; i < storageTypes.length(); ++i){
-
         CompoundId compoundId = parseInt(storageTypes[i]);
-
         auto _amount = getCompoundAmount(world, microbeEntity, compoundId);
         while(_amount > 0){
             // Eject up to 3 units per particle
-            auto ejectedAmount = takeCompound(world, microbeEntity, compoundId, 3);
-
+            auto ejectedAmount = takeCompound(world, microbeEntity, compoundId, 2);
             auto direction = Float3(GetEngine().GetRandom().GetNumber(0.0f, 1.0f) * 2 - 1,
                 0, GetEngine().GetRandom().GetNumber(0.0f, 1.0f) * 2 - 1);
-            createAgentCloud(world, compoundId, position._Position, direction, ejectedAmount);
+            createAgentCloud(world, compoundId, position._Position, direction, ejectedAmount, 2000);
             _amount = _amount - ejectedAmount;
         }
     }
