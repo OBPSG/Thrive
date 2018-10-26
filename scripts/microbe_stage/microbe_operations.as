@@ -1136,7 +1136,7 @@ void kill(CellStageWorld@ world, ObjectID microbeEntity)
     }
 
     if(microbeComponent.wasBeingEngulfed){
-        removeEngulfedEffect(world, microbeEntity);
+        removeEngulfedEffect(microbeComponent, world);
     }
 
     microbeSceneNode.Hidden = true;
@@ -1147,9 +1147,13 @@ void kill(CellStageWorld@ world, ObjectID microbeEntity)
 void removeEngulfedEffect(CellStageWorld@ world, ObjectID microbeEntity){
     MicrobeComponent@ microbeComponent = cast<MicrobeComponent>(
         world.GetScriptComponentHolder("MicrobeComponent").Find(microbeEntity));
+    removeEngulfedEffect(microbeComponent, world);
 
+    
+}
 
-    // This kept getting doubled for some reason, so i just set it to default
+void removeEngulfedEffect(MicrobeComponent@ microbeComponent, CellStageWorld@ world){
+// This kept getting doubled for some reason, so i just set it to default
     microbeComponent.movementFactor = 1.0f;
 
 
@@ -1171,13 +1175,23 @@ void removeEngulfedEffect(CellStageWorld@ world, ObjectID microbeEntity){
 // Sets the colour of the microbe's membrane.
 void setMembraneColour(CellStageWorld@ world, ObjectID microbeEntity, Float4 colour){
     auto membraneComponent = world.GetComponent_MembraneComponent(microbeEntity);
+    setMembraneColour(membraneComponent, colour);
+}
+
+//Default version of setMembraneColour that takes MembraneComponent as an argument
+void setMembraneColour(MembraneComponent@ membraneComponent, Float4 colour){
     membraneComponent.setColour(colour);
 }
 
 // Sets the type of the microbe's membrane.
 void setMembraneType(CellStageWorld@ world, ObjectID microbeEntity, MEMBRANE_TYPE type){
     auto membraneComponent = world.GetComponent_MembraneComponent(microbeEntity);
-    membraneComponent.setMembraneType(type);
+    setMembraneType(membraneComponent, type);
+}
+
+//Default version of setMembraneType that takes MembraneComponent as an argument
+void setMembraneType(MembraneComponent@ membraneComponent, MEMBRANE_TYPE type){
+    membraneComponent.setMembraneType(type);	
 }
 
 }
