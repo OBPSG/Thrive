@@ -6,6 +6,7 @@ using namespace thrive;
 #include "engine/player_data.h"
 #include "general/hex.h"
 #include "general/locked_map.h"
+#include "general/properties_component.h"
 #include "general/timed_life_system.h"
 #include "generated/cell_stage_world.h"
 #include "generated/microbe_editor_world.h"
@@ -431,6 +432,8 @@ static uint16_t CompoundAbsorberComponentTYPEProxy =
     static_cast<uint16_t>(CompoundAbsorberComponent::TYPE);
 static uint16_t TimedLifeComponentTYPEProxy =
     static_cast<uint16_t>(TimedLifeComponent::TYPE);
+static uint16_t AgentPropertiesTYPEProxy =
+    static_cast<uint16_t>(AgentProperties::TYPE);
 
 //! Helper for bindThriveComponentTypes
 bool
@@ -525,6 +528,7 @@ bool
     }
 
     ANGELSCRIPT_REGISTER_ENUM_VALUE(MEMBRANE_TYPE, MEMBRANE);
+    ANGELSCRIPT_REGISTER_ENUM_VALUE(MEMBRANE_TYPE, DOUBLEMEMBRANE);
     ANGELSCRIPT_REGISTER_ENUM_VALUE(MEMBRANE_TYPE, WALL);
     ANGELSCRIPT_REGISTER_ENUM_VALUE(MEMBRANE_TYPE, CHITIN);
 
@@ -799,8 +803,37 @@ bool
            engine, "TimedLifeComponent", &TimedLifeComponentTYPEProxy))
         return false;
 
+    if(engine->RegisterObjectType(
+           "AgentProperties", 0, asOBJ_REF | asOBJ_NOCOUNT) < 0) {
+        ANGELSCRIPT_REGISTERFAIL;
+    }
 
+    if(!bindComponentTypeId(
+           engine, "AgentProperties", &AgentPropertiesTYPEProxy))
+        return false;
 
+    if(engine->RegisterObjectMethod("AgentProperties",
+           "void setSpeciesName(string newString)",
+           asMETHOD(AgentProperties, setSpeciesName), asCALL_THISCALL) < 0) {
+        ANGELSCRIPT_REGISTERFAIL;
+    }
+
+    if(engine->RegisterObjectMethod("AgentProperties",
+           "void setAgentType(string newString)",
+           asMETHOD(AgentProperties, setAgentType), asCALL_THISCALL) < 0) {
+        ANGELSCRIPT_REGISTERFAIL;
+    }
+
+    if(engine->RegisterObjectMethod("AgentProperties",
+           "string getSpeciesName()", asMETHOD(AgentProperties, getSpeciesName),
+           asCALL_THISCALL) < 0) {
+        ANGELSCRIPT_REGISTERFAIL;
+    }
+
+    if(engine->RegisterObjectMethod("AgentProperties", "string getAgentType()",
+           asMETHOD(AgentProperties, getAgentType), asCALL_THISCALL) < 0) {
+        ANGELSCRIPT_REGISTERFAIL;
+    }
     return true;
 }
 
@@ -1090,19 +1123,22 @@ bool
     }
 
     if(engine->RegisterObjectMethod("CompoundCloudSystem",
-           "bool addCloud(CompoundId compound, float density, int x, int y)",
+           "bool addCloud(CompoundId compound, float density, const Float3 &in "
+           "worldPosition)",
            asMETHOD(CompoundCloudSystem, addCloud), asCALL_THISCALL) < 0) {
         ANGELSCRIPT_REGISTERFAIL;
     }
 
     if(engine->RegisterObjectMethod("CompoundCloudSystem",
-           "int takeCompound(CompoundId compound, int x, int y, float rate)",
+           "int takeCompound(CompoundId compound, const Float3 &in "
+           "worldPosition, float rate)",
            asMETHOD(CompoundCloudSystem, takeCompound), asCALL_THISCALL) < 0) {
         ANGELSCRIPT_REGISTERFAIL;
     }
 
     if(engine->RegisterObjectMethod("CompoundCloudSystem",
-           "int amountAvailable(CompoundId compound, int x, int y, float rate)",
+           "int amountAvailable(CompoundId compound, const Float3 &in "
+           "worldPosition, float rate)",
            asMETHOD(CompoundCloudSystem, takeCompound), asCALL_THISCALL) < 0) {
         ANGELSCRIPT_REGISTERFAIL;
     }

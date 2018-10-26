@@ -18,6 +18,7 @@ using namespace thrive;
 PlayerMicrobeControl::PlayerMicrobeControl(KeyConfiguration& keys) :
     m_reproduceCheat(keys.ResolveControlNameToFirstKey("ReproduceCheat")),
     m_engulfMode(keys.ResolveControlNameToFirstKey("EngulfMode")),
+    m_shoottoxin(keys.ResolveControlNameToFirstKey("ShootToxin")),
     m_forward(keys.ResolveControlNameToFirstKey("MoveForward")),
     m_backwards(keys.ResolveControlNameToFirstKey("MoveBackwards")),
     m_left(keys.ResolveControlNameToFirstKey("MoveLeft")),
@@ -61,8 +62,10 @@ bool
     } else if(m_engulfMode.Match(key, modifiers)) {
         pressedEngulf = true;
         return true;
+    } else if(m_shoottoxin.Match(key, modifiers)) {
+        pressedToxin = true;
+        return true;
     } else if(m_spawnGlucoseCheat.Match(key, modifiers)) {
-
         cheatCloudsDown = true;
         return true;
     }
@@ -106,7 +109,6 @@ bool
         int modifiers,
         bool down)
 {
-
     bool matched = false;
 
     // This could be made easier by just directly manipulating the
@@ -274,12 +276,29 @@ void
         }
     }
 
+    // Fire Toxin
+    if(thrive->getPlayerInput()->getPressedToxin()) {
+
+        LOG_INFO("Toxin Shoot pressed");
+
+        thrive->getPlayerInput()->setPressedToxin(false);
+
+        ScriptRunningSetup setup("playerShootToxin");
+        auto result = module->ExecuteOnModule<void>(
+            setup, false, &world, controlledEntity);
+
+        if(result.Result != SCRIPT_RUN_RESULT::Success) {
+            LOG_WARNING("PlayerMicrobeControlSystem: failed to Run script "
+                        "playerShootToxin");
+        }
+    }
+
     if(thrive->getPlayerInput()->getSpamClouds()) {
 
         LOG_INFO("Spawning cheat cloud");
         world.GetCompoundCloudSystem().addCloud(
-            SimulationParameters::compoundRegistry.getTypeId("glucose"), 1000,
-            lookPoint.X, lookPoint.Z);
+            SimulationParameters::compoundRegistry.getTypeId("glucose"), 15000,
+            lookPoint);
     }
 }
 // ------------------------------------ //
@@ -287,7 +306,6 @@ Float3
     PlayerMicrobeControlSystem::getTargetPoint(
         Leviathan::GameWorld& worldWithCamera)
 {
-
     float x, y;
     Engine::Get()->GetWindowEntity()->GetNormalizedRelativeMouse(x, y);
 

@@ -26,7 +26,7 @@ generator.addInclude "microbe_stage/compound_absorber_system.h"
 generator.addInclude "microbe_stage/microbe_camera_system.h"
 generator.addInclude "microbe_stage/player_microbe_control.h"
 generator.addInclude "microbe_stage/player_hover_info.h"
-
+generator.addInclude "general/properties_component.h"
 generator.addInclude "general/timed_life_system.h"
 
 cellWorld = GameWorldClass.new(
@@ -49,6 +49,8 @@ cellWorld = GameWorldClass.new(
                           # Don't actually call this from other places than CompoundCloudSystem
                           ConstructorInfo.new(
                             [
+                              Variable.new("owner", "CompoundCloudSystem",
+                                           noConst: true),
                               Variable.new("first", "Compound*",
                                            noRef: true),
                               Variable.new("second", "Compound*",
@@ -57,7 +59,7 @@ cellWorld = GameWorldClass.new(
                                            noRef: true),
                               Variable.new("fourth", "Compound*",
                                            noRef: true),
-                            ])],
+                            ], noangelscript: true)],
                         releaseparams: ["GetScene()"]),
     EntityComponent.new("AgentCloudComponent", [ConstructorInfo.new(
                                                   [
@@ -81,6 +83,7 @@ cellWorld = GameWorldClass.new(
                                                    Variable.new("timeToLive", "int",
                                                                 noRef: true),
                                                  ])]),
+    EntityComponent.new("AgentProperties", [ConstructorInfo.new([])]),                                
     
   ],
   systems: [

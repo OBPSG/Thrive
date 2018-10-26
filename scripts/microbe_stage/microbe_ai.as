@@ -445,6 +445,8 @@ class MicrobeAISystem : ScriptSystem{
         aiComponent.ticksSinceLastToggle+=1;
         // Required For AI
         CompoundId oxytoxyId = SimulationParameters::compoundRegistry().getTypeId("oxytoxy");
+        CompoundId atpID = SimulationParameters::compoundRegistry().getTypeId("atp");
+
         MicrobeComponent@ secondMicrobeComponent = cast<MicrobeComponent>(
             world.GetScriptComponentHolder("MicrobeComponent").Find(prey));
         // Agent vacuoles.
@@ -472,26 +474,32 @@ class MicrobeAISystem : ScriptSystem{
 
             // Turn off engulf if prey is Dead
             // This is probabbly not working
-            if (secondMicrobeComponent.dead ){
+            if (secondMicrobeComponent.dead == true){
                 aiComponent.hasTargetPosition = false;
                 aiComponent.lifeState = GATHERING_STATE;
                 if (microbeComponent.engulfMode)
                     {
                     MicrobeOperations::toggleEngulfMode(world, microbeEntity);
                     }
+                //  You got a kill, good job
+            auto playerSpecies = MicrobeOperations::getSpeciesComponent(world, "Default");
+            if (!microbeComponent.isPlayerMicrobe && microbeComponent.speciesName != playerSpecies.name)
+                {
+                MicrobeOperations::alterSpeciesPopulation(world,microbeEntity,50);
+                }
             }
             else
             {
                 //  Turn on engulfmode if close
-                if ((position._Position -  aiComponent.targetPosition).LengthSquared() <= 200
+                if (((position._Position -  aiComponent.targetPosition).LengthSquared() <= 300+(microbeComponent.organelles.length()*3.0f)) && (MicrobeOperations::getCompoundAmount(world,microbeEntity,atpID) >=  1.0f)
                     && !microbeComponent.engulfMode &&
                     (float(microbeComponent.organelles.length()) > (
-                        ENGULF_HP_RATIO_REQ*secondMicrobeComponent.organelles.length())) && aiComponent.ticksSinceLastToggle >= AI_ENGULF_INTERVAL)
+                        ENGULF_HP_RATIO_REQ*secondMicrobeComponent.organelles.length())))
                     {
                     MicrobeOperations::toggleEngulfMode(world, microbeEntity);
                     aiComponent.ticksSinceLastToggle=0;
                     }
-                else if ((position._Position -  aiComponent.targetPosition).LengthSquared() >= 310 && microbeComponent.engulfMode && aiComponent.ticksSinceLastToggle >= AI_ENGULF_INTERVAL)
+                else if ((position._Position -  aiComponent.targetPosition).LengthSquared() >= 500+(microbeComponent.organelles.length()*3.0f) && microbeComponent.engulfMode && aiComponent.ticksSinceLastToggle >= AI_ENGULF_INTERVAL)
                     {
                     MicrobeOperations::toggleEngulfMode(world, microbeEntity);
                     aiComponent.ticksSinceLastToggle=0;
@@ -537,6 +545,11 @@ class MicrobeAISystem : ScriptSystem{
         }
 
     void preyFlee(ObjectID microbeEntity, MicrobeAIControllerComponent@ aiComponent, MicrobeComponent@ microbeComponent, Position@ position){
+            CompoundId oxytoxyId = SimulationParameters::compoundRegistry().getTypeId("oxytoxy");
+            // Agent vacuoles.
+            int numberOfAgentVacuoles = int(
+                microbeComponent.specialStorageOrganelles[formatUInt(oxytoxyId)]);
+
             if (GetEngine().GetRandom().GetNumber(0,100) <= 40)
                 {
                 // Scatter
@@ -595,7 +608,21 @@ class MicrobeAISystem : ScriptSystem{
                 microbeComponent.facingTargetPoint = aiComponent.targetPosition;
                 microbeComponent.movementDirection = Float3(0, 0, -AI_MOVEMENT_SPEED);
                 aiComponent.hasTargetPosition = true;
-            }
+
+           }
+           //Freak out and fire toxins everywhere
+          if (aiComponent.speciesAggression > aiComponent.speciesFear && aiComponent.speciesFocus >= GetEngine().GetRandom().GetNumber(0.0f,400.0f))
+          {
+            if (microbeComponent.hitpoints > 0 && numberOfAgentVacuoles > 0 &&
+                (position._Position -  aiComponent.targetPosition).LengthSquared() <= aiComponent.speciesFocus*10.0f)
+                    {
+                    if (MicrobeOperations::getCompoundAmount(world,microbeEntity,oxytoxyId) >= MINIMUM_AGENT_EMISSION_AMOUNT)
+                        {
+                        MicrobeOperations::emitAgent(world,microbeEntity, oxytoxyId,10.0f,aiComponent.speciesFocus*10.0f);
+                        }
+                    }
+          }
+
         }
 
     // For for firguring out which state to enter

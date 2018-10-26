@@ -128,6 +128,13 @@ void applyEngulfMode(CellStageWorld@ world, ObjectID entity){
     MicrobeOperations::toggleEngulfMode(world, entity);
 }
 
+// Player shoot toxin
+void playerShootToxin(CellStageWorld@ world, ObjectID entity){
+    MicrobeComponent@ microbeComponent = cast<MicrobeComponent>(
+        world.GetScriptComponentHolder("MicrobeComponent").Find(entity));
+    CompoundId oxytoxyId = SimulationParameters::compoundRegistry().getTypeId("oxytoxy");
+    MicrobeOperations::emitAgent(world,entity, oxytoxyId,10.0f,400*10.0f);
+}
 
 void onReturnFromEditor(CellStageWorld@ world)
 {
@@ -167,8 +174,8 @@ void onReturnFromEditor(CellStageWorld@ world)
 // TODO: also put these physics callback somewhere
 void cellHitFloatingOrganelle(GameWorld@ world, ObjectID firstEntity, ObjectID secondEntity){
 
-    LOG_INFO("Cell hit a floating organelle: object ids: " + firstEntity + " and " +
-        secondEntity);
+    //LOG_INFO("Cell hit a floating organelle: object ids: " + firstEntity + " and " +
+    //    secondEntity);
 
     // Determine which is the organelle
     CellStageWorld@ asCellWorld = cast<CellStageWorld>(world);
@@ -196,8 +203,8 @@ void cellHitFloatingOrganelle(GameWorld@ world, ObjectID firstEntity, ObjectID s
 // We can make this generic using the dictionary in agents.as eventually, but for now all we have is oxytoxy
 void cellHitAgent(GameWorld@ world, ObjectID firstEntity, ObjectID secondEntity){
 
-    LOG_INFO("Cell hit an agaent: object ids: " + firstEntity + " and " +
-        secondEntity);
+    //LOG_INFO("Cell hit an agaent: object ids: " + firstEntity + " and " +
+    //    secondEntity);
 
     // Determine which is the organelle
     CellStageWorld@ asCellWorld = cast<CellStageWorld>(world);
@@ -241,9 +248,11 @@ int beingEngulfed(GameWorld@ world, ObjectID firstEntity, ObjectID secondEntity)
     // Grab the microbe components
     MicrobeComponent@ firstMicrobeComponent = cast<MicrobeComponent>(
         world.GetScriptComponentHolder("MicrobeComponent").Find(firstEntity));
-
     MicrobeComponent@ secondMicrobeComponent = cast<MicrobeComponent>(
         world.GetScriptComponentHolder("MicrobeComponent").Find(secondEntity));
+    //Check if they were null *because if null the cast failed)
+    if (firstMicrobeComponent !is null && secondMicrobeComponent !is null)
+    {
     // Get microbe sizes here
     int firstMicrobeComponentOrganelles = firstMicrobeComponent.organelles.length();
     int secondMicrobeComponentOrganelles = secondMicrobeComponent.organelles.length();
@@ -294,13 +303,58 @@ int beingEngulfed(GameWorld@ world, ObjectID firstEntity, ObjectID secondEntity)
             shouldCollide = 0;
         }
     }
+    }
 
     return shouldCollide;
 }
 
+// Returns 0 if you hit an agent and calls the code
+int hitAgent(GameWorld@ world, ObjectID firstEntity, ObjectID secondEntity)
+{
+    int shouldCollide = 1;
+
+
+    // Grab the microbe components
+    MicrobeComponent@ firstMicrobeComponent = cast<MicrobeComponent>(
+        world.GetScriptComponentHolder("MicrobeComponent").Find(firstEntity));
+    MicrobeComponent@ secondMicrobeComponent = cast<MicrobeComponent>(
+        world.GetScriptComponentHolder("MicrobeComponent").Find(secondEntity));
+     CellStageWorld@ asCellWorld = cast<CellStageWorld>(world);
+    AgentProperties@ firstPropertiesComponent = asCellWorld.GetComponent_AgentProperties(firstEntity);
+    AgentProperties@ secondPropertiesComponent = asCellWorld.GetComponent_AgentProperties(secondEntity);
+
+    if (firstPropertiesComponent !is null || secondPropertiesComponent !is null)
+    {
+        if (firstPropertiesComponent !is null && secondMicrobeComponent !is null)
+        {
+            if (firstPropertiesComponent.getSpeciesName()==secondMicrobeComponent.speciesName)
+                {
+                shouldCollide=0;
+                return shouldCollide;
+                }
+        }
+        else if (secondPropertiesComponent !is null && firstMicrobeComponent !is null)
+        {
+            if (secondPropertiesComponent.getSpeciesName()==firstMicrobeComponent.speciesName)
+                {
+                shouldCollide=0;
+                return shouldCollide;
+                }
+        }
+    }
+    // Check if one is a microbe, and the other is not
+    if ((firstMicrobeComponent !is null || secondMicrobeComponent !is null) && !(firstMicrobeComponent !is null && secondMicrobeComponent !is null))
+        {
+        //LOG_INFO("called toxin callback");
+        cellHitAgent(world,firstEntity,secondEntity);
+        shouldCollide=0;
+        }
+
+    return shouldCollide;
+}
 
 void createAgentCloud(CellStageWorld@ world, CompoundId compoundId, Float3 pos,
-    Float3 direction, float amount, float lifetime)
+    Float3 direction, float amount, float lifetime, string speciesName)
 {
     auto normalizedDirection = direction.Normalize();
     auto agentEntity = world.CreateEntity();
@@ -313,7 +367,13 @@ void createAgentCloud(CellStageWorld@ world, CompoundId compoundId, Float3 pos,
 
 
 
+
     auto rigidBody = world.Create_Physics(agentEntity, world, position, null);
+
+
+   auto agentProperties = world.Create_AgentProperties(agentEntity);
+   agentProperties.setSpeciesName(speciesName);
+   agentProperties.setAgentType("oxytoxy");
 
     rigidBody.SetCollision(world.GetPhysicalWorld().CreateSphere(HEX_SIZE));
     rigidBody.CreatePhysicsBody(world.GetPhysicalWorld(), world.GetPhysicalMaterial("agentCollision"));
@@ -339,6 +399,15 @@ void createAgentCloud(CellStageWorld@ world, CompoundId compoundId, Float3 pos,
     auto timedLifeComponent = world.Create_TimedLifeComponent(agentEntity, int(lifetime));
 }
 
+void resetWorld(CellStageWorld@ world)
+    {
+    // We have to call this so we get a new batch of species and so that everything spawns properly.
+    // I worry that not just creating a whole new world will cause tons of problems later aswell ,
+    // for example when we want new planets and everything, but eh. We can call it all in this method.
+
+    cast<SpeciesSystem>(world.GetScriptSystem("SpeciesSystem")).resetAutoEvo();
+    cast<SpeciesSystem>(world.GetScriptSystem("SpeciesSystem")).createNewEcoSystem();
+    }
 
 
 
@@ -428,7 +497,6 @@ ObjectID createToxin(CellStageWorld@ world, Float3 pos)
         world.GetPhysicalMaterial("agentCollision"));
     rigidBody.CreatePlaneConstraint(world.GetPhysicalWorld(), Float3(0,1,0));
     rigidBody.SetMass(1.0f);
-
 
     rigidBody.JumpTo(position);
 

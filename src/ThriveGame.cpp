@@ -188,6 +188,9 @@ void
 void
     ThriveGame::startNewGame()
 {
+    // Used to stop it from clearing entities when rwe restart so species can
+    // spawn.
+    bool restarted = false;
     // To work with instant start, we need to invoke this if we have no cell
     // stage world
     if(!m_postLoadRan) {
@@ -204,11 +207,16 @@ void
 
     // Create world if not already created //
     if(!m_impl->m_cellStage) {
-
         LOG_INFO("ThriveGame: startNewGame: Creating new cellstage world");
         m_impl->m_cellStage =
             std::dynamic_pointer_cast<CellStageWorld>(engine->CreateWorld(
                 window1, static_cast<int>(THRIVE_WORLD_TYPE::CELL_STAGE)));
+    } else {
+        restarted = true;
+        m_impl->m_cellStage->ClearEntities();
+        // We also need to somehow force stop all the music here.
+        LOG_INFO("ThriveGame: startNewGame called after already created once: "
+                 "Creating new cellstage world");
     }
 
     LEVIATHAN_ASSERT(m_impl->m_cellStage, "Cell stage world creation failed");
@@ -220,16 +228,19 @@ void
     m_impl->m_cellStageKeys->setEnabled(true);
 
     // And switch the GUI mode to allow key presses through
-    Leviathan::GUI::View* view = window1->GetGui()->GetViewByIndex(0);
+    auto layer = window1->GetGui()->GetLayerByIndex(0);
+
     // Allow running without GUI
-    if(view)
-        view->SetInputMode(Leviathan::GUI::INPUT_MODE::Gameplay);
+    if(layer)
+        layer->SetInputMode(Leviathan::GUI::INPUT_MODE::Gameplay);
 
 
     // Clear world //
-    m_impl->m_cellStage->ClearEntities();
+    if(restarted == false) {
+        m_impl->m_cellStage->ClearEntities();
+    }
 
-    // TODO: unfreeze, if was in the background
+    // TODO: unpause, if it was paused
 
     // Main camera that will be attached to the player
     m_cellCamera = Leviathan::ObjectLoader::LoadCamera(*m_impl->m_cellStage,
@@ -296,7 +307,6 @@ void
 
     LOG_INFO("Finished calling setupScriptsForWorld");
 
-    // TODO: move to a new function to reduce clutter here
     // Set background plane //
     // This is needed to be created here for biome.as to work correctly
     // Also this is a manual object and with infinite extent as this isn't
@@ -305,14 +315,16 @@ void
         m_impl->m_cellStage->GetScene()->createSceneNode(Ogre::SCENE_STATIC);
 
     // This needs to be manually destroyed later
-    m_impl->m_microbeBackgroundMesh =
-        Leviathan::GeometryHelpers::CreateScreenSpaceQuad(
-            "CellStage_background", -1, -1, 2, 2);
+    if(!m_impl->m_microbeBackgroundMesh) {
+        m_impl->m_microbeBackgroundMesh =
+            Leviathan::GeometryHelpers::CreateScreenSpaceQuad(
+                "CellStage_background", -1, -1, 2, 2);
 
-    m_impl->m_microbeBackgroundSubMesh =
-        m_impl->m_microbeBackgroundMesh->getSubMesh(0);
+        m_impl->m_microbeBackgroundSubMesh =
+            m_impl->m_microbeBackgroundMesh->getSubMesh(0);
 
-    m_impl->m_microbeBackgroundSubMesh->setMaterialName("Background");
+        m_impl->m_microbeBackgroundSubMesh->setMaterialName("Background");
+    }
 
     // Setup render queue for it
     m_impl->m_cellStage->GetScene()->getRenderQueue()->setRenderQueueMode(
@@ -321,8 +333,20 @@ void
     // This now attaches the item as well (as long as the scene node is created)
     // This makes it easier to manage the multiple backgrounds and reattaching
     // them
-    m_impl->createBackgroundItem();
+    if(!m_impl->m_microbeBackgroundItem) {
+        m_impl->createBackgroundItem();
+    }
 
+    // Gen species if this is a restart//
+    if(restarted) {
+        ScriptRunningSetup setup("resetWorld");
+        auto returned =
+            ThriveGame::Get()->getMicrobeScripts()->ExecuteOnModule<void>(
+                setup, false, m_impl->m_cellStage.get());
+
+        if(returned.Result != SCRIPT_RUN_RESULT::Success)
+            LOG_ERROR("Failed to run script side resetWorld");
+    }
     // Spawn player //
     setup = ScriptRunningSetup("setupPlayer");
 
@@ -420,14 +444,6 @@ Leviathan::GameModule*
 }
 // ------------------------------------ //
 void
-    ThriveGame::onIntroSkipPressed()
-{
-    // Fire an event that the GUI handles //
-    Engine::Get()->GetEventHandler()->CallEvent(
-        new Leviathan::GenericEvent("MainMenuIntroSkipEvent"));
-}
-
-void
     ThriveGame::killPlayerCellClicked()
 {
     LOG_INFO("Calling killPlayerCellClicked");
@@ -456,8 +472,6 @@ void
     Leviathan::Engine* engine = Engine::GetEngine();
     Leviathan::Window* window1 = engine->GetWindowEntity();
 
-    // Make the cell world be in the background
-
     // Create an editor world
     LOG_INFO("Entering MicrobeEditor");
 
@@ -481,12 +495,19 @@ void
     // Set the right input handlers active //
     m_impl->m_menuKeyPresses->setEnabled(false);
     m_impl->m_cellStageKeys->setEnabled(false);
-    // TODO: editor hotkeys
+    // // TODO: editor hotkeys. Maybe they should be in the GUI
+
+    // // So using this
+    // // // And switch the GUI mode to allow key presses through
+    // Leviathan::GUI::View* view = window1->GetGui()->GetLayerByIndex(0);
+
+    // // Allow running without GUI
+    // if(view)
+    //     view->SetInputMode(Leviathan::GUI::INPUT_MODE::Menu);
+
 
     // Clear world //
     m_impl->m_microbeEditor->ClearEntities();
-
-    // TODO: unfreeze, if was in the background
 
     // Main camera that will be attached to the player
     auto camera = Leviathan::ObjectLoader::LoadCamera(*m_impl->m_microbeEditor,
@@ -556,7 +577,16 @@ void
     // Set the right input handlers active //
     m_impl->m_menuKeyPresses->setEnabled(false);
     m_impl->m_cellStageKeys->setEnabled(true);
-    // TODO: editor hotkeys
+    // // TODO: editor hotkeys. Maybe they should be in the GUI
+
+    // // So using this
+    // // // And switch the GUI mode to allow key presses through
+    // Leviathan::GUI::View* view = window1->GetGui()->GetLayerByIndex(0);
+
+    // // Allow running without GUI
+    // if(view)
+    //     view->SetInputMode(Leviathan::GUI::INPUT_MODE::Gameplay);
+
 
     // Run the post editing script
 
@@ -585,8 +615,8 @@ void
     ThriveGame::exitToMenuClicked()
 {
     // Unlink window
-    Leviathan::Window* window2 = Engine::GetEngine()->GetWindowEntity();
-    window2->LinkObjects(nullptr);
+    Leviathan::Window* window1 = Engine::GetEngine()->GetWindowEntity();
+    window1->LinkObjects(nullptr);
 
     // Clear the world
     m_impl->m_cellStage->ClearEntities();
@@ -595,10 +625,16 @@ void
     m_impl->m_menuKeyPresses->setEnabled(true);
     m_impl->m_cellStageKeys->setEnabled(false);
 
-    // Start the Thrive main theme again
+    // And switch the GUI mode to allow key presses through
+    auto layer = window1->GetGui()->GetLayerByIndex(0);
 
-    // Log the successful return to menu
-    LOG_INFO("Back to main menu!");
+    // Allow running without GUI
+    if(layer)
+        layer->SetInputMode(Leviathan::GUI::INPUT_MODE::Menu);
+
+    // Fire an event to switch over the GUI
+    Engine::Get()->GetEventHandler()->CallEvent(
+        new Leviathan::GenericEvent("ExitedToMenu"));
 }
 
 // ------------------------------------ //
@@ -661,19 +697,6 @@ void
         return;
     }
 
-    // try {
-    //     m_impl->m_MicrobeEditorScripts =
-    //         engine->GetGameModuleLoader()->Load("microbe_editor",
-    //         "ThriveGame");
-    // } catch(const Leviathan::Exception& e) {
-
-    //     LOG_ERROR(
-    //         "ThriveGame: microbe_editor module failed to load, exception:");
-    //     e.PrintToLog();
-    //     MarkAsClosing();
-    //     return;
-    // }
-
     LOG_INFO("ThriveGame: script loading succeeded");
 
     if(!scriptSetup()) {
@@ -696,11 +719,10 @@ void
 
     Leviathan::Window* window1 = Engine::GetEngine()->GetWindowEntity();
 
-    // Register custom listener for detecting keypresses for skipping the intro
-    // video
-    // TODO: these need to be disabled when not used
+    // Register utility key presses
     window1->GetInputController()->LinkReceiver(m_impl->m_globalKeyPresses);
 
+    // Register keypresses that will be used in the menu
     window1->GetInputController()->LinkReceiver(m_impl->m_menuKeyPresses);
 
     // Register the player input listener
@@ -806,7 +828,6 @@ int
 
     // Grab microbe component
 
-
     // How do i grab the microbe info here and return information from
     // angelscript method? Return 0 for now to test it
     ScriptRunningSetup setup("beingEngulfed");
@@ -819,6 +840,41 @@ int
 
     if(returned.Result != SCRIPT_RUN_RESULT::Success)
         LOG_ERROR("Failed to run script side beingEngulfed");
+
+    return returned.Value;
+}
+
+
+int
+    agentCallback(const NewtonMaterial* material,
+        const NewtonBody* body0,
+        const NewtonBody* body1,
+        int threadIndex)
+{
+    if(!body0 || !body1)
+        return 1;
+
+    Leviathan::Physics* firstPhysics =
+        static_cast<Leviathan::Physics*>(NewtonBodyGetUserData(body0));
+    Leviathan::Physics* secondPhysics =
+        static_cast<Leviathan::Physics*>(NewtonBodyGetUserData(body1));
+
+    NewtonWorld* world = NewtonBodyGetWorld(body0);
+    Leviathan::PhysicalWorld* physicalWorld =
+        static_cast<Leviathan::PhysicalWorld*>(NewtonWorldGetUserData(world));
+    GameWorld* gameWorld = physicalWorld->GetGameWorld();
+
+    // Now we can do more interetsing things with agents
+    ScriptRunningSetup setup("hitAgent");
+
+    // Causes errors as this has to release
+    auto returned =
+        ThriveGame::Get()->getMicrobeScripts()->ExecuteOnModule<int>(setup,
+            false, gameWorld, firstPhysics->ThisEntity,
+            secondPhysics->ThisEntity);
+
+    if(returned.Result != SCRIPT_RUN_RESULT::Success)
+        LOG_ERROR("Failed to run script side hitAgent");
 
     return returned.Value;
 }
@@ -876,7 +932,7 @@ void
         .SetCallbacks(nullptr, cellHitFloatingOrganelle);
     // Agents
     cellMaterial->FormPairWith(*agentMaterial)
-        .SetCallbacks(nullptr, cellHitAgent);
+        .SetCallbacks(agentCallback, cellHitAgent);
     // Engulfing
     cellMaterial->FormPairWith(*cellMaterial)
         .SetCallbacks(cellOnCellAABBHitCallback, cellOnCellActualContact);
@@ -894,11 +950,6 @@ void
         m_impl->m_microbeScripts->ReleaseScript();
         m_impl->m_microbeScripts.reset();
     }
-
-    // if(m_impl->m_MicrobeEditorScripts) {
-    //     m_impl->m_MicrobeEditorScripts->ReleaseScript();
-    //     m_impl->m_MicrobeEditorScripts.reset();
-    // }
 
     // All resources that need Ogre or the engine to be available when
     // they are destroyed need to be released here
@@ -936,13 +987,12 @@ void
     keyconfigobj->AddKeyIfMissing(guard, "ReproduceCheat", {"P"});
     keyconfigobj->AddKeyIfMissing(guard, "SpawnGlucoseCheat", {"O"});
     keyconfigobj->AddKeyIfMissing(guard, "EngulfMode", {"G"});
+    keyconfigobj->AddKeyIfMissing(guard, "ShootToxin", {"E"});
     keyconfigobj->AddKeyIfMissing(guard, "Screenshot", {"PrintScreen"});
     keyconfigobj->AddKeyIfMissing(guard, "ZoomIn", {"+", "Keypad +"});
     keyconfigobj->AddKeyIfMissing(guard, "ZoomOut", {"-", "Keypad -"});
 }
 // ------------------------------------ //
-
-
 bool
     ThriveGame::InitLoadCustomScriptTypes(asIScriptEngine* engine)
 {

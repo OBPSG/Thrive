@@ -101,9 +101,11 @@ Ogre::Vector3
 Ogre::Vector3
     MembraneComponent::GetExternalOrganelle(double x, double y)
 {
-    if(vertices2D.empty())
+    // This was causing little regular-interval lag bursts
+    /*if(vertices2D.empty())
         LOG_WARNING("MembraneComponent: GetExternalOrganelle: called before "
                     "membrane is initialized. Returning 0, 0");
+    */
 
     float organelleAngle = Ogre::Math::ATan2(y, x).valueRadians();
 
@@ -290,6 +292,10 @@ void
     // species (allowing the same species to share)
     if(!coloredMaterial) {
         Ogre::MaterialPtr baseMaterial = chooseMaterialByType();
+
+        LEVIATHAN_ASSERT(
+            baseMaterial, "Failed to find base material for membrane");
+
         // TODO: find a way for the species to manage this to
         // avoid having tons of materials Maybe Use the species's
         // name instead. and let something like the
@@ -340,6 +346,7 @@ void
 {
     switch(membraneType) {
     case MEMBRANE_TYPE::MEMBRANE: DrawMembrane(); break;
+    case MEMBRANE_TYPE::DOUBLEMEMBRANE: DrawMembrane(); break;
     case MEMBRANE_TYPE::WALL: DrawCellWall(); break;
     case MEMBRANE_TYPE::CHITIN: DrawCellWall(); break;
     }
@@ -358,6 +365,7 @@ size_t
 
     switch(membraneType) {
     case MEMBRANE_TYPE::MEMBRANE:
+    case MEMBRANE_TYPE::DOUBLEMEMBRANE:
         meshVertices[writeIndex++] = {Ogre::Vector3(0, height / 2, 0), center};
 
         for(size_t i = 0, end = vertices2D.size(); i < end + 1; i++) {
@@ -406,11 +414,16 @@ Ogre::MaterialPtr
     case MEMBRANE_TYPE::MEMBRANE:
         return Ogre::MaterialManager::getSingleton().getByName("Membrane");
         break;
+    case MEMBRANE_TYPE::DOUBLEMEMBRANE:
+        return Ogre::MaterialManager::getSingleton().getByName(
+            "MembraneDouble");
+        break;
     case MEMBRANE_TYPE::WALL:
         return Ogre::MaterialManager::getSingleton().getByName("cellwall");
         break;
     case MEMBRANE_TYPE::CHITIN:
-        return Ogre::MaterialManager::getSingleton().getByName("cellwall");
+        return Ogre::MaterialManager::getSingleton().getByName(
+            "cellwallchitin");
         break;
     }
     // default

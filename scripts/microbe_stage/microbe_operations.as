@@ -215,6 +215,14 @@ void respawnPlayer(CellStageWorld@ world){
     //Decrease the population by 10
     auto playerSpecies = MicrobeOperations::getSpeciesComponent(world, "Default");
     playerSpecies.population -= 10;
+
+    //Creates an event that calls the function in javascript that checks extinction events
+    GenericEvent@ checkExtinction = GenericEvent("CheckExtinction");
+    NamedVars@ vars = checkExtinction.GetNamedVars();
+    vars.AddValue(ScriptSafeVariableBlock("population", playerSpecies.population));
+
+    //Calling the above event
+    GetEngine().GetEventHandler().CallEvent(checkExtinction);
 }
 
 
@@ -390,10 +398,10 @@ void ejectCompound(CellStageWorld@ world, ObjectID microbeEntity, CompoundId com
     auto ynew = membraneCoords.x * s + membraneCoords.y * c;
 
     auto amountToEject = takeCompound(world, microbeEntity, compoundId,
-        amount/10.0);
+        amount);
     createCompoundCloud(world, compoundId,
         position._Position.X + xnew * ejectionDistance,
-        position._Position.Y + ynew * ejectionDistance,
+        position._Position.Z + ynew * ejectionDistance,
        amountToEject);
 }
 
@@ -494,7 +502,7 @@ void emitAgent(CellStageWorld@ world, ObjectID microbeEntity, CompoundId compoun
         auto cellPosition = world.GetComponent_Position(microbeEntity);
 
     // Cooldown code
-    LOG_INFO("Cooldown "+microbeComponent.agentEmissionCooldown);
+    //LOG_INFO("Cooldown "+microbeComponent.agentEmissionCooldown);
 
     if(microbeComponent.agentEmissionCooldown > 0){ return; }
 
@@ -506,11 +514,12 @@ void emitAgent(CellStageWorld@ world, ObjectID microbeEntity, CompoundId compoun
         {
         // Calculate the emission angle of the agent emitter
          // The front of the microbe
-         Float3 exit = Hex::axialToCartesian(1, 0);
+         Float3 exit = Hex::axialToCartesian(0, -1);
         auto membraneCoords = membraneComponent.GetExternalOrganelle(exit.X, exit.Z);
 
         //Get the distance to eject the agent
         auto maxR = 0;
+        auto minR = 0;
         for(uint i = 0; i < microbeComponent.organelles.length(); ++i){
             auto organelle = microbeComponent.organelles[i];
             auto hexes = organelle.organelle.getHexes();
@@ -519,15 +528,18 @@ void emitAgent(CellStageWorld@ world, ObjectID microbeEntity, CompoundId compoun
                 if(hex.r + organelle.r > maxR){
                     maxR = hex.r + organelle.r;
                 }
+                if(hex.r + organelle.r < minR){
+                    minR = hex.r + organelle.r;
+                }
             }
         }
-        auto angle =  atan2(exit.Z, exit.X);
+
+         auto angle =  atan2(exit.Z, exit.X);
             if(angle < 0){
                  angle = angle + 2*PI;
             }
              angle = -(angle * 180/PI-90 ) % 360;
         // Find the direction the microbe is facing
-        auto ejectionDistance = (maxR+1.7f) * HEX_SIZE;
         auto yAxis = Ogre::Quaternion(cellPosition._Orientation).yAxis();
         auto microbeAngle = atan2(yAxis.x,yAxis.z);
         if(microbeAngle < 0){
@@ -540,15 +552,27 @@ void emitAgent(CellStageWorld@ world, ObjectID microbeEntity, CompoundId compoun
         auto c = cos(finalAngle/180*PI);
         auto xnew = -membraneCoords.x * c + membraneCoords.z * s;
         auto ynew = membraneCoords.x * s + membraneCoords.z * c;
+        // Find the direction the microbe is facing
+
+        auto ejectionDistanceZ = ((maxR+1) * HEX_SIZE/2)+HEX_SIZE/2;
+        // Take the microbe angle into account so we get world relative degrees
+        auto vec = ( microbeComponent.facingTargetPoint - cellPosition._Position);
+        auto direction = vec.Normalize();
 
         auto amountToEject = takeCompound(world, microbeEntity,compoundId, maxAmount/10.0);
 
-        auto vec = ( microbeComponent.facingTargetPoint - cellPosition._Position);
-        auto direction = vec.Normalize();
         if (amountToEject >= MINIMUM_AGENT_EMISSION_AMOUNT)
             {
             GetEngine().GetSoundDevice().Play2DSoundEffect("Data/Sound/soundeffects/microbe-release-toxin.ogg");
-            createAgentCloud(world, compoundId, cellPosition._Position+(Float3(xnew*ejectionDistance,0,ynew*ejectionDistance)), direction,amountToEject * 10.0f,lifeTime);
+        if (abs(minR) < maxR)
+            {
+            createAgentCloud(world, compoundId, cellPosition._Position+(Float3(xnew*-ejectionDistanceZ,0,ynew*-ejectionDistanceZ)), direction,amountToEject * 10.0f,lifeTime,microbeComponent.speciesName);
+            }
+        else
+            {
+            createAgentCloud(world, compoundId, cellPosition._Position+(Float3(xnew*ejectionDistanceZ,0,ynew*ejectionDistanceZ)), direction,amountToEject * 10.0f,lifeTime,microbeComponent.speciesName);
+            }
+
             // The cooldown time is inversely proportional to the amount of agent vacuoles.
             microbeComponent.agentEmissionCooldown = uint(AGENT_EMISSION_COOLDOWN/numberOfAgentVacuoles);
             }
@@ -960,7 +984,7 @@ ObjectID _createMicrobeEntity(CellStageWorld@ world, const string &in name, bool
             "' doesn't have a processor component");
         // assert(processor !is null);
     } else {
-    LOG_INFO("Added processor");
+    //LOG_INFO("Added processor");
         compoundBag.setProcessor(processor, microbeComponent.speciesName);
     }
 
@@ -1058,10 +1082,10 @@ void kill(CellStageWorld@ world, ObjectID microbeEntity)
         auto _amount = getCompoundAmount(world, microbeEntity, compoundId);
         while(_amount > 0){
             // Eject up to 3 units per particle
-            auto ejectedAmount = takeCompound(world, microbeEntity, compoundId, 2);
+            auto ejectedAmount = takeCompound(world, microbeEntity, compoundId, 3);
             auto direction = Float3(GetEngine().GetRandom().GetNumber(0.0f, 1.0f) * 2 - 1,
                 0, GetEngine().GetRandom().GetNumber(0.0f, 1.0f) * 2 - 1);
-            createAgentCloud(world, compoundId, position._Position, direction, ejectedAmount, 2000);
+            createAgentCloud(world, compoundId, position._Position, direction, ejectedAmount, 2000, microbeComponent.speciesName);
             _amount = _amount - ejectedAmount;
         }
     }
@@ -1121,7 +1145,12 @@ void kill(CellStageWorld@ world, ObjectID microbeEntity)
 
     LOG_WRITE("TODO: play animation deathAnimModel");
     // deathAnimModel.GraphicalObject.playAnimation("Death", false);
-
+    //subtract population
+    auto playerSpecies = MicrobeOperations::getSpeciesComponent(world, "Default");
+    if (!microbeComponent.isPlayerMicrobe && microbeComponent.speciesName != playerSpecies.name)
+        {
+        alterSpeciesPopulation(world,microbeEntity,-5);
+        }
     //deathAnimSceneNode.Node.setPosition(position._Position);
 
     microbeComponent.dead = true;
@@ -1129,6 +1158,7 @@ void kill(CellStageWorld@ world, ObjectID microbeEntity)
     microbeComponent.movementDirection = Float3(0,0,0);
 
     rigidBodyComponent.ClearVelocity();
+
 
     if(!microbeComponent.isPlayerMicrobe){
         // Destroy the physics state //
@@ -1142,6 +1172,19 @@ void kill(CellStageWorld@ world, ObjectID microbeEntity)
     microbeSceneNode.Hidden = true;
     microbeSceneNode.Marked = true;
 }
+
+void alterSpeciesPopulation(CellStageWorld@ world, ObjectID microbeEntity, int popChange)
+    {
+    MicrobeComponent@ microbeComponent = cast<MicrobeComponent>(
+    world.GetScriptComponentHolder("MicrobeComponent").Find(microbeEntity));
+    SpeciesComponent@ ourSpecies = getSpeciesComponent(world, microbeEntity);
+    if (ourSpecies!is null)
+        {
+        //LOG_INFO("Species Population Unaltered: "+cast<SpeciesSystem>(world.GetScriptSystem("SpeciesSystem")).getSpeciesPopulation(microbeComponent.speciesName));
+        cast<SpeciesSystem>(world.GetScriptSystem("SpeciesSystem")).updatePopulationForSpecies(microbeComponent.speciesName,popChange);
+        }
+        //LOG_INFO("Species Population altered: "+cast<SpeciesSystem>(world.GetScriptSystem("SpeciesSystem")).getSpeciesPopulation(microbeComponent.speciesName));
+    }
 
 // TODO: Confirm this method works
 void removeEngulfedEffect(CellStageWorld@ world, ObjectID microbeEntity){

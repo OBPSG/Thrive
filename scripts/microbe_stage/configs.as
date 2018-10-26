@@ -14,9 +14,11 @@ const auto MAX_COLOR = 0.9f;
 const auto MIN_COLOR_MUTATION = -0.005f;
 const auto MAX_COLOR_MUTATION = 0.005f;
 
-const auto MIN_OPACITY = 0.8f;
-const auto MAX_OPACITY = 4.0f;
+const auto MIN_OPACITY = 0.2f;
+const auto MAX_OPACITY = 1.8f;
 
+const auto MIN_OPACITY_CHITIN = 0.4f;
+const auto MAX_OPACITY_CHITIN = 1.2f;
 // Min Opacity Mutation
 const auto MIN_OPACITY_MUTATION = -0.01f;
 const auto MAX_OPACITY_MUTATION = 0.01f;
@@ -302,10 +304,12 @@ const dictionary STARTER_MICROBES = {
             },
             {
                 OrganelleTemplatePlaced("nucleus", 0, 0, 180),
-                OrganelleTemplatePlaced("mitochondrion", -1, 3, 240),
-                OrganelleTemplatePlaced("vacuole", 1, 2, 180),
-                OrganelleTemplatePlaced("flagellum", 1, 3, 0),
-                OrganelleTemplatePlaced("flagellum", -1, 4, 0)
+                OrganelleTemplatePlaced("mitochondrion", -1, 3, 0),
+                OrganelleTemplatePlaced("chloroplast", -1, 4, 90),
+                OrganelleTemplatePlaced("vacuole", 1, 2, 270),
+                OrganelleTemplatePlaced("oxytoxy", 1, 4, 0),
+                OrganelleTemplatePlaced("flagellum", 1, 5, 0),
+                OrganelleTemplatePlaced("flagellum", -1, 5, 0)
             },
             Float4(1, 1, 1, 1),
             false,

@@ -221,7 +221,8 @@ class MicrobeEditor{
             const auto basePos = organelle.cartesianPosition;
 
             // TODO: not sure if this rotation should be here
-            auto hexes = organelle.organelle.getRotatedHexes(organelle.rotation);
+            // auto hexes = organelle.organelle.getRotatedHexes(organelle.rotation);
+            auto hexes = organelle.organelle.getHexes();
 
             for(uint a = 0; a < hexes.length(); ++a){
 
@@ -230,6 +231,8 @@ class MicrobeEditor{
                 ObjectID hex = hudSystem.hoverHex[usedHoverHex++];
                 auto node = hudSystem.world.GetComponent_RenderNode(hex);
                 node.Node.setPosition(pos);
+                node.Node.setOrientation(Ogre::Quaternion(Ogre::Degree(90),
+                Ogre::Vector3(0, 1, 0))*Ogre::Quaternion(Ogre::Degree(180),Ogre::Vector3(0, 0, 1)));
                 node.Hidden = false;
                 node.Marked = true;
             }
@@ -742,6 +745,8 @@ class MicrobeEditor{
                 ObjectID hex = hudSystem.hoverHex[usedHoverHex++];
                 auto node = hudSystem.world.GetComponent_RenderNode(hex);
                 node.Node.setPosition(pos);
+                node.Node.setOrientation(Ogre::Quaternion(Ogre::Degree(90),
+                Ogre::Vector3(0, 1, 0))*Ogre::Quaternion(Ogre::Degree(180),Ogre::Vector3(0, 0, 1)));
                 node.Hidden = false;
                 node.Marked = true;
             }
