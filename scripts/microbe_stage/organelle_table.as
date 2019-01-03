@@ -36,6 +36,9 @@ Organelle atributes:
     composition:    A table with the compounds that compost the organelle.
                     They are needed in order to split the organelle, and a
                     percentage of them is released upon death of the microbe.
+					
+    isExternal:     A flag restricting placement of this membrane to the exterior
+                    of the microbe	
 */
 #include "organelle.as"
 #include "organelle_component.as"
@@ -104,6 +107,8 @@ class OrganelleParameters{
 
     //! Cost in mutation points
     int mpCost = 0;
+	
+	bool isExternal = false;
 }
 
 //! Cache the result if called multiple times in quick succession
@@ -451,6 +456,8 @@ void setupOrganelles(){
     flagellumParameters.hexes = {
         Int2(0, 0)
     };
+	
+	flagellumParameters.isExternal = true;
 
     _addOrganelleToTable(Organelle(flagellumParameters));
 
