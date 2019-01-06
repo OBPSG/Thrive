@@ -615,6 +615,18 @@ class MicrobeEditor{
             OrganellePlacement::getOrganelleAt(editedMicrobe, Int2(q - 1, r + 1)) !is null ||
             OrganellePlacement::getOrganelleAt(editedMicrobe, Int2(q - 1, r + 0)) !is null;
     }
+	
+	//! Checks whether at least one neighboring hex is empty
+    bool hasOpenNeighbor(int q, int r)
+    {
+	    return
+            OrganellePlacement::getOrganelleAt(editedMicrobe, Int2(q + 0, r - 1)) is null ||
+            OrganellePlacement::getOrganelleAt(editedMicrobe, Int2(q + 1, r - 1)) is null ||
+            OrganellePlacement::getOrganelleAt(editedMicrobe, Int2(q + 1, r + 0)) is null ||
+            OrganellePlacement::getOrganelleAt(editedMicrobe, Int2(q + 0, r + 1)) is null ||
+            OrganellePlacement::getOrganelleAt(editedMicrobe, Int2(q - 1, r + 1)) is null ||
+            OrganellePlacement::getOrganelleAt(editedMicrobe, Int2(q - 1, r + 0)) is null;
+    }
 
     void loadMicrobe(int entityId){
         mutationPoints = 0;
