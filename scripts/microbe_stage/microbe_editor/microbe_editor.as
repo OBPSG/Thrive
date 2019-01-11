@@ -570,6 +570,8 @@ class MicrobeEditor{
 
         bool empty = true;
         bool touching = false;
+		bool extern_touching = false;
+		bool hasExternAccess = false;
 
         Organelle@ toBePlacedOrganelle = getOrganelleDefinition(activeActionName);
 
@@ -596,11 +598,28 @@ class MicrobeEditor{
                 }
             }
 
-            // Check touching
-            if(surroundsOrganelle(posQ, posR))
+			// If organelle has isExternal flag, check if at least one hex has external access
+			// In addition to touching
+			if(organelle.isExternal)
+			{
+				if(surroundsOrganelle(posQ, posR))
+			    {
+				    extern_touching = true;
+			    }
+				if(hasOpenNeighbor(posQ, posR))
+					hasExternAccess = true;
+				touching = hasExternAccess && extern_touching;
+			}
+            // Check only touching
+            else if(surroundsOrganelle(posQ, posR))
+			{
                 touching = true;
+			}
+				
+			
         }
-
+        
+		
         return touching;
     }
 

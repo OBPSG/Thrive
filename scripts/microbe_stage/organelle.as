@@ -37,6 +37,7 @@ class Organelle{
         chanceToCreate = parameters.chanceToCreate;
         prokaryoteChance = parameters.prokaryoteChance;
         mpCost = parameters.mpCost;
+		isExternal = parameters.isExternal;
 
         initialComposition = parameters.initialComposition;
         components = parameters.components;
@@ -226,6 +227,7 @@ class Organelle{
 
     //! Cost in mutation points
     int mpCost = 0;
+	bool isExternal;
 }
 
 enum ORGANELLE_HEALTH{
