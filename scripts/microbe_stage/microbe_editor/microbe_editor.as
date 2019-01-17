@@ -572,6 +572,7 @@ class MicrobeEditor{
         bool touching = false;
 		bool extern_touching = false;
 		bool hasExternAccess = false;
+		auto offsetDictionaryKeys = HEX_NEIGHBOUR_OFFSET.getKeys();
 
         Organelle@ toBePlacedOrganelle = getOrganelleDefinition(activeActionName);
 
@@ -606,8 +607,10 @@ class MicrobeEditor{
 			    {
 				    extern_touching = true;
 			    }
-				if(hasOpenNeighbor(posQ, posR))
+				if(hasOpenNeighbor(Int2(posQ, posR)))
+				{
 					hasExternAccess = true;
+				}
 				touching = hasExternAccess && extern_touching;
 			}
             // Check only touching
@@ -615,8 +618,25 @@ class MicrobeEditor{
 			{
                 touching = true;
 			}
-				
 			
+			// Check every adjacent hex for organelles with the isExternal attribute
+			for(uint j = 0; j < offsetDictionaryKeys.length(); j++)
+			{
+				//Access components of Int2 value in offset dictionary
+			    auto nHex = Int2(HEX_NEIGHBOUR_OFFSET[offsetDictionaryKeys[j]]);
+				PlacedOrganelle@ adjacentOrganelle = OrganellePlacement::getOrganelleAt(editedMicrobe, nHex);
+				/*
+				//Checking every adjacent hex of the same neighboring organelle is
+				//technically redundant, but not hugely inefficient
+				if(adjacentOrganelle != null)
+				{
+					//Make sure the adjacent organelle has external access
+					//If it has the isExternal flag
+				    if (adjacentOrganelle.isExternal && !(hasOpenNeighbor(nq, nr)))
+						    touching = false;
+				}
+				*/
+			}
         }
         
 		
@@ -636,15 +656,27 @@ class MicrobeEditor{
     }
 	
 	//! Checks whether at least one neighboring hex is empty
-    bool hasOpenNeighbor(int q, int r)
+    bool hasOpenNeighbor(const Int2 &in hex)
     {
 	    return
-            OrganellePlacement::getOrganelleAt(editedMicrobe, Int2(q + 0, r - 1)) is null ||
-            OrganellePlacement::getOrganelleAt(editedMicrobe, Int2(q + 1, r - 1)) is null ||
-            OrganellePlacement::getOrganelleAt(editedMicrobe, Int2(q + 1, r + 0)) is null ||
-            OrganellePlacement::getOrganelleAt(editedMicrobe, Int2(q + 0, r + 1)) is null ||
-            OrganellePlacement::getOrganelleAt(editedMicrobe, Int2(q - 1, r + 1)) is null ||
-            OrganellePlacement::getOrganelleAt(editedMicrobe, Int2(q - 1, r + 0)) is null;
+            OrganellePlacement::getOrganelleAt(editedMicrobe, hex) is null ||
+            OrganellePlacement::getOrganelleAt(editedMicrobe, hex) is null ||
+            OrganellePlacement::getOrganelleAt(editedMicrobe, hex) is null ||
+            OrganellePlacement::getOrganelleAt(editedMicrobe, hex) is null ||
+            OrganellePlacement::getOrganelleAt(editedMicrobe, hex) is null ||
+            OrganellePlacement::getOrganelleAt(editedMicrobe, hex) is null;
+    }
+	
+	//! Checks whether at least one neighboring hex is empty, excluding the array hexes passed in
+    bool hasOpenNeighbor(const Int2 &in hex, const Int2[] in hexes )
+    {
+	    return
+            OrganellePlacement::getOrganelleAt(editedMicrobe, hex) is null ||
+            OrganellePlacement::getOrganelleAt(editedMicrobe, hex) is null ||
+            OrganellePlacement::getOrganelleAt(editedMicrobe, hex) is null ||
+            OrganellePlacement::getOrganelleAt(editedMicrobe, hex) is null ||
+            OrganellePlacement::getOrganelleAt(editedMicrobe, hex) is null ||
+            OrganellePlacement::getOrganelleAt(editedMicrobe, hex) is null;
     }
 
     void loadMicrobe(int entityId){
