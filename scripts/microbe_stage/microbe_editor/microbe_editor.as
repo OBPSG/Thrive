@@ -630,9 +630,9 @@ class MicrobeEditor{
 				//technically redundant, but not hugely inefficient
 				if(adjacentOrganelle != null)
 				{
-					//Make sure the adjacent organelle has external access
+					//Make sure the adjacent organelle will continue to have external access
 					//If it has the isExternal flag
-				    if (adjacentOrganelle.isExternal && !(hasOpenNeighbor(nq, nr)))
+				    if (adjacentOrganelle.isExternal && !(hasOpenNeighbor(nHex, hexes)))
 						    touching = false;
 				}
 				*/
@@ -667,17 +667,38 @@ class MicrobeEditor{
             OrganellePlacement::getOrganelleAt(editedMicrobe, hex) is null;
     }
 	
-	//! Checks whether at least one neighboring hex is empty, excluding the array hexes passed in
-    bool hasOpenNeighbor(const Int2 &in hex, const Int2[] in hexes )
+	//! Checks whether at least one neighboring hex is empty, excluding the array of hexes passed in
+	// This version is nessecary during the check in isValidPlacement for ensuring any
+	// neighboring organelles still have external access after placing a new organelle
+	// because the organelle to be placed hasn't yet been made an instance of PlacedOrganelle
+    /*
+	bool hasOpenNeighbor(const Int2 &in hex, const array<hex@>@ hexes)
     {
-	    return
-            OrganellePlacement::getOrganelleAt(editedMicrobe, hex) is null ||
-            OrganellePlacement::getOrganelleAt(editedMicrobe, hex) is null ||
-            OrganellePlacement::getOrganelleAt(editedMicrobe, hex) is null ||
-            OrganellePlacement::getOrganelleAt(editedMicrobe, hex) is null ||
-            OrganellePlacement::getOrganelleAt(editedMicrobe, hex) is null ||
-            OrganellePlacement::getOrganelleAt(editedMicrobe, hex) is null;
+	    array<Int2@> hexesToCheck = array<Int2@>();
+		for(int i = 0; i < offsetDictionaryKeys.length(); i++)
+		{
+		    auto nHex = Int2(HEX_NEIGHBOUR_OFFSET[offsetDictionaryKeys[i]]);
+		    // Check if hex is not in the exlusion list
+			// TODO This logic is really messy at the moment because of the conversion
+			// from Hex to Int2. This can be fixed up once the editor system has been
+			// refactored to use Int2 everywhere.
+			for(int j = 0; j < hexes.length; j++)
+			{
+			    if(!(nHex[0] == hexes[j].q && nHex[1] == hexes[j].r))
+				{
+				    hexesToCheck.insertLast(Int2(nHex))
+				]
+			}
+		}
+		for(int i = 0; i < hexesToCheck.length; i++)
+		{
+		    if(OrganellePlacemnt::GetOrganelleAt(editedMicrobe, nHex) is null)
+		        emptyHex = true;
+		}
+		
+		return emptyHex;
     }
+	*/
 
     void loadMicrobe(int entityId){
         mutationPoints = 0;
